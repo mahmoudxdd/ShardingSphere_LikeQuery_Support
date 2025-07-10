@@ -1,0 +1,1 @@
+# ShardingSphere_LikeQuery_Support

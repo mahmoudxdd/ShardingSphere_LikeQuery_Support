@@ -37,7 +37,7 @@ public class CustomLikeEncryptor implements LikeEncryptAlgorithm {
         }
         return chunks;
     }
-    public String hashChunk(String chunk) {
+    private String hashChunk(String chunk) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hashBytes = digest.digest(chunk.getBytes(StandardCharsets.UTF_8));
@@ -54,25 +54,5 @@ public class CustomLikeEncryptor implements LikeEncryptAlgorithm {
             hexString.append(hex);
         }
         return hexString.toString();
-    }
-    public boolean matchesLike(List<String> storedChunks, String searchPattern) {
-        if (storedChunks == null || storedChunks.isEmpty() || searchPattern == null) {
-            return false;
-
-        }
-        String searchText = searchPattern.replaceAll("[%_]", "").toLowerCase();
-        if (searchText.isEmpty()) {
-            return true;
-        }
-        if (searchText.length() < 3) {
-            return false;
-        }
-        List<String> searchChunks = generateAllChunks(searchText);
-        for (String searchChunk : searchChunks) {
-            if (storedChunks.contains(searchChunk)) {
-                return true;
-            }
-        }
-        return false;
     }
 }

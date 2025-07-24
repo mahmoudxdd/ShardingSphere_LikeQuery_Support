@@ -2,7 +2,12 @@ package org.example.repository;
 
 import org.example.encrypt.CustomLikeEncryptor;
 import org.example.model.User;
+import org.example.rewrite.CustomSQLRewriter;
+
 import javax.sql.DataSource;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,27 +32,33 @@ public class UserRepository {
         }
         return user;
     }
-    public List<User> findByEmailLike(String emailPattern) throws SQLException {
-        List<String> searchChunks = encryptor.generateAllChunks(emailPattern.replaceAll("[%_]", "").toLowerCase());
+    public List<User> findByEmailLike(String pattern) throws SQLException {
+        CustomSQLRewriter.setOrder(100);
+        List<String> searchChunks = encryptor.generateAllChunks(pattern.replaceAll("[%_]", "").toLowerCase());
         String[] searchChunksArray = searchChunks.toArray(new String[0]);
-        String sql = "SELECT username, email FROM users " +
-                "WHERE email_chunks @> ?::text[]";
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            Array sqlArray = conn.createArrayOf("text", searchChunksArray);
-            ps.setArray(1, sqlArray);
-            try (ResultSet rs = ps.executeQuery()) {
-                List<User> users = new ArrayList<>();
-                while (rs.next())
-                {
-                    User user = new User();
-                    user.setUsername(rs.getString("username"));
-                    user.setEmail(rs.getString("email"));
-                    users.add(user);
+        try {
+            String sql = "SELECT username, email FROM users WHERE email_chunks LIKE ?";
+            try (Connection conn = dataSource.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql))
+            {
+                String pgArrayLiteral = "{" + String.join(",", searchChunksArray) + "}";
+                ps.setObject(1, pgArrayLiteral);
+                try (ResultSet rs = ps.executeQuery()) {
+                    List<User> users = new ArrayList<>();
+                    while (rs.next()) {
+                        User user = new User();
+                        user.setUsername(rs.getString("username"));
+                        user.setEmail(rs.getString("email"));
+                        users.add(user);
+                    }
+                    return users;
                 }
-                return users;
             }
+        } finally {
+            CustomSQLRewriter.clearOrder();
         }
     }
+
+
 }
 

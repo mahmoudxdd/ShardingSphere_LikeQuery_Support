@@ -15,14 +15,14 @@ public class Main {
             DataSource dataSource = ShardingSphereConfig.getDataSource();
             UserRepository userRepo = new UserRepository(dataSource, encryptor);
             User newUser = new User();
-            newUser.setUsername("mahmoud");
-            newUser.setEmail("mahmoud@gmail.com");
-            newUser.setPassword("mahmoud23");
-          // userRepo.createUser(newUser);
-           List<User> matchedUsers = userRepo.findByEmailLike("%gmail%");
-            for (User user : matchedUsers) {
-                System.out.println(user.toString());
-            }
+            newUser.setUsername("capucina");
+            newUser.setEmail("capucina@gmail.com");
+            newUser.setPassword("capcap23");
+            //userRepo.createUser(newUser);
+
+            List<User> users = userRepo.findByEmailLike("%cap%");
+            System.out.println(users);
+
         } catch (SQLException e) {
             throw new RuntimeException("Database operation failed", e);
         }

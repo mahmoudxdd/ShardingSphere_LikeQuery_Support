@@ -1,5 +1,6 @@
 package org.example.repository;
 
+import org.example.config.ShardingSphereConfig;
 import org.example.encrypt.CustomLikeEncryptor;
 import org.example.model.User;
 import org.example.rewrite.CustomSQLRewriter;
@@ -34,18 +35,17 @@ public class UserRepository {
     }
     public List<User> findByEmailLike(String pattern) throws SQLException {
         CustomSQLRewriter.setOrder(100);
-        List<String> searchChunks = encryptor.generateAllChunks(pattern.replaceAll("[%_]", "").toLowerCase());
-        String[] searchChunksArray = searchChunks.toArray(new String[0]);
+        String[] searchChunksArray = prepareSearchChunks(pattern);
         try {
-            String sql = "SELECT username, email FROM users WHERE email_chunks LIKE ?";
+            String sql = String.format("SELECT username, email FROM users WHERE %s LIKE ?", ShardingSphereConfig.getChunksColumnName());
             try (Connection conn = dataSource.getConnection();
                  PreparedStatement ps = conn.prepareStatement(sql))
             {
-                String pgArrayLiteral = "{" + String.join(",", searchChunksArray) + "}";
-                ps.setObject(1, pgArrayLiteral);
+                ps.setObject(1, createArrayLiteral(searchChunksArray));
                 try (ResultSet rs = ps.executeQuery()) {
                     List<User> users = new ArrayList<>();
-                    while (rs.next()) {
+                    while (rs.next())
+                    {
                         User user = new User();
                         user.setUsername(rs.getString("username"));
                         user.setEmail(rs.getString("email"));
@@ -58,7 +58,17 @@ public class UserRepository {
             CustomSQLRewriter.clearOrder();
         }
     }
-
-
+    private String[] prepareSearchChunks(String pattern)
+    {
+        String cleanPattern = pattern.replaceAll("[%_]", "").toLowerCase();
+        return encryptor.generateAllChunks(cleanPattern).toArray(new String[0]);
+    }
+    private static String createArrayLiteral(String[] elements)
+    {
+        if (elements == null || elements.length == 0) {
+            return "{}";
+        }
+        return "{" + String.join(",", elements) + "}";
+    }
 }
 

@@ -9,24 +9,24 @@ import org.apache.shardingsphere.infra.rewrite.context.SQLRewriteContextDecorato
 import org.apache.shardingsphere.infra.rewrite.sql.token.pojo.SQLToken;
 import org.apache.shardingsphere.infra.rewrite.sql.token.pojo.Substitutable;
 import org.apache.shardingsphere.infra.route.context.RouteContext;
+import org.example.config.ShardingSphereConfig;
 
 public class CustomSQLRewriter implements SQLRewriteContextDecorator<EncryptRule> {
     private static final ThreadLocal<Integer> threadLocalOrder = ThreadLocal.withInitial(() -> 0);
+    private static final String chunksColumn = ShardingSphereConfig.getChunksColumnName();
     @Override
     public void decorate(EncryptRule rule, ConfigurationProperties props,
                          SQLRewriteContext context, RouteContext routeContext) {
-
+        String likePattern = chunksColumn + " LIKE ?";
         SQLStatementContext<?> sqlStatementContext = context.getSqlStatementContext();
         String sql = context.getSql();
-        if (sqlStatementContext instanceof SelectStatementContext && sql.contains("email_chunks LIKE ?")) {
-            System.out.println("[DEBUG] Processing LIKE query on email_chunks");
 
-            int startIndex = sql.indexOf("email_chunks LIKE ?");
-            int stopIndex = startIndex + "email_chunks LIKE ?".length();
-            context.getSqlTokens().add(new ReplacementToken(startIndex, stopIndex));
+        if (sqlStatementContext instanceof SelectStatementContext && sql.contains(likePattern)) {
+            int startIndex = sql.indexOf(likePattern);
+            int stopIndex = startIndex + likePattern.length();
+            context.getSqlTokens().add(new ReplacementToken(startIndex, stopIndex, chunksColumn));
         }
     }
-
     public static void setOrder(int order) {
         threadLocalOrder.set(order);
     }
@@ -44,15 +44,13 @@ public class CustomSQLRewriter implements SQLRewriteContextDecorator<EncryptRule
     public Class<EncryptRule> getTypeClass() {
         return EncryptRule.class;
     }
-
     private static class ReplacementToken extends SQLToken implements Substitutable {
         private final int stopIndex;
 
-        public ReplacementToken(int startIndex, int stopIndex) {
+        public ReplacementToken(int startIndex, int stopIndex, String chunksColumn) {
             super(startIndex);
             this.stopIndex = stopIndex;
         }
-
         @Override
         public int getStopIndex() {
             return stopIndex;
@@ -60,7 +58,7 @@ public class CustomSQLRewriter implements SQLRewriteContextDecorator<EncryptRule
 
         @Override
         public String toString() {
-            return "email_chunks @> ?::text[]";
+            return chunksColumn + " @> ?::text[]";
         }
     }
 }

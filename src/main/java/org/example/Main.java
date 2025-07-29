@@ -20,7 +20,7 @@ public class Main {
             newUser.setPassword("capcap23");
             //userRepo.createUser(newUser);
 
-            List<User> users = userRepo.findByEmailLike("%cap%");
+            List<User> users = userRepo.findByEmailLike("%capucina%");
             System.out.println(users);
 
         } catch (SQLException e) {

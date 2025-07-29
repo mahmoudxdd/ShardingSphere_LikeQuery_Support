@@ -13,20 +13,25 @@ import java.sql.SQLException;
 import java.util.*;
 
 public class ShardingSphereConfig {
-
     private static DataSource dataSource;
-
+    //parameters (add chunks columns want to use in encrypt)
+    private static final String CHUNKS_COLUMN_NAME = "email_chunks";
+    private static final String AES_KEY = "123456abc";
+    // ////////
     static {
         try {
             dataSource = createDataSource();
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to initialize ShardingSphere DataSource", e);
+            throw new RuntimeException(e);
         }
     }
     public static DataSource getDataSource() {
         return dataSource;
     }
-    public static DataSource createDataSource() throws SQLException {
+    public static String getChunksColumnName() {
+        return CHUNKS_COLUMN_NAME;
+    }
+    private static DataSource createDataSource() throws SQLException {
         HikariConfig hikariConfig = new HikariConfig();
         Properties props = new Properties();
         props.setProperty("sql-show", "true");
@@ -35,20 +40,17 @@ public class ShardingSphereConfig {
         hikariConfig.setPassword("mah");
         hikariConfig.setSchema("public");
         HikariDataSource hikariDataSource = new HikariDataSource(hikariConfig);
-        Map<String, DataSource> dataSourceMap = new HashMap<>();
-        dataSourceMap.put("testdb", hikariDataSource);
-        EncryptRuleConfiguration encryptRuleConfig = createEncryptRuleConfiguration();
         return ShardingSphereDataSourceFactory.createDataSource(
                 "testdb",
-                dataSourceMap,
-                Collections.singleton(encryptRuleConfig),
+                Collections.singletonMap("testdb", hikariDataSource),
+                Collections.singleton(createEncryptRuleConfiguration()),
                 props
         );
     }
     private static EncryptRuleConfiguration createEncryptRuleConfiguration() {
-        Map<String, AlgorithmConfiguration> encryptors = new HashMap<>();
         Properties aesProps = new Properties();
-        aesProps.setProperty("aes-key-value", "123456abc");
+        aesProps.setProperty("aes-key-value", AES_KEY);
+        Map<String, AlgorithmConfiguration> encryptors = new HashMap<>();
         encryptors.put("aes_encryptor", new AlgorithmConfiguration("AES", aesProps));
         encryptors.put("custom_like", new AlgorithmConfiguration("CUSTOM_LIKE", new Properties()));
         List<EncryptColumnRuleConfiguration> columns = new ArrayList<>();
@@ -56,7 +58,7 @@ public class ShardingSphereConfig {
                 "email",
                 "email",
                 "",
-                "email_chunks",
+                CHUNKS_COLUMN_NAME,
                 "",
                 "aes_encryptor",
                 null,
@@ -74,13 +76,8 @@ public class ShardingSphereConfig {
                 null,
                 true
         ));
-        EncryptTableRuleConfiguration encryptTableConfig = new EncryptTableRuleConfiguration(
-                "users",
-                columns,
-                true
-        );
         return new EncryptRuleConfiguration(
-                Collections.singleton(encryptTableConfig),
+                Collections.singleton(new EncryptTableRuleConfiguration("users", columns, true)),
                 encryptors
         );
     }
